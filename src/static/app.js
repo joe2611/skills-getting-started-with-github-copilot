@@ -22,7 +22,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const spotsLeft = details.max_participants - details.participants.length;
         const participantList = details.participants.length
           ? `<ul class="participants-list">${details.participants
-              .map((participant) => `<li>${escapeHtml(participant)}</li>`)
+              .map(
+                (participant) => `
+                  <li>
+                    <span>${escapeHtml(participant)}</span>
+                    <button
+                      class="delete-participant"
+                      type="button"
+                      data-activity="${escapeHtml(name)}"
+                      data-participant="${escapeHtml(participant)}"
+                      aria-label="Unregister ${escapeHtml(participant)} from ${escapeHtml(name)}"
+                      title="Unregister participant"
+                    >🗑️</button>
+                  </li>
+                `
+              )
               .join("")}</ul>`
           : '<p class="no-participants">No participants yet. Be the first to join!</p>';
 
@@ -50,6 +64,35 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error fetching activities:", error);
     }
   }
+
+  activitiesList.addEventListener("click", async (event) => {
+    const deleteButton = event.target.closest(".delete-participant");
+    if (!deleteButton) {
+      return;
+    }
+
+    const activity = deleteButton.dataset.activity;
+    const participant = deleteButton.dataset.participant;
+
+    try {
+      const response = await fetch(
+        `/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(participant)}`,
+        { method: "DELETE" }
+      );
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.detail || "Failed to unregister participant");
+      }
+
+      await fetchActivities();
+    } catch (error) {
+      messageDiv.textContent = error.message;
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      console.error("Error unregistering participant:", error);
+    }
+  });
 
   function escapeHtml(value) {
     return value.replace(/[&<>"']/g, (character) => {
